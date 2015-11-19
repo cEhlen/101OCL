@@ -1,0 +1,72 @@
+context Company
+inv: not name.oclIsUndefined() and name <> ""
+inv: not departments.oclIsUndefined()
+
+-- Add a department to the `departments' collection.
+context Company::addDepartment(dep:Department)
+pre: departments->excludes(dep)
+post: departments->includes(dep)
+
+-- Remove a department from the `departments' collection
+context Company::removeDepartment(dep:Department)
+pre: departments->notEmpty()
+pre: departments->includes(dep)
+post: departments->excludes(dep)
+
+-- Returns the sum of all salaries
+context Company::total():Real
+pre: departments->notEmpty()
+body: departments->collect(total())->sum()
+
+context Company::cut()
+post: total() = total()@pre / 2
+
+context Company::complyRankedSalaries():Boolean
+body:
+    departments->forAll(complyRankedSalaries())
+
+------------------------------------------------------------------------------
+-- Department
+context Department
+inv: not manager.oclIsUndefined()
+inv: not employees.oclIsUndefined()
+inv: not departments.oclIsUndefined()
+
+context Department::total():Real
+body:
+    employees->collect(salary)->sum() +
+    manager.salary +
+    departments->collect(total())->sum()
+
+context Department::cut()
+post: total() = total()@pre / 2.0
+
+context Department::complyRankedSalaries():Boolean
+body:
+    let minSalary : Real = employees->sortedBy(salary)->first().salary in
+        Not employees->exists(self.salary > manager.salary) And
+        demartments->forAll(complyRankedSalaries(minSalary))
+
+context Department::complyRankedSalaries(max:Real):Boolean
+body:
+    let minSalary : Real = employees->sortedBy(salary)->first().salary in
+        max > manager.salary And
+        Not employees->exists(self.salary > manager.salary) And
+        demartments->forAll(complyRankedSalaries(minSalary))
+
+------------------------------------------------------------------------------
+-- Employee
+context Employee
+inv: salary >= 0
+inv: not name.oclIsUndefined()
+inv: not address.oclIsUndefined()
+
+context Employee::cut()
+post: salary = salary@pre / 2.0
+
+context Employee::addCOI(emp:Employee)
+pre: coi->excludes(emp)
+post: coi->includes(emp)
+
+context Employee::hasCOI(emp:Employee):Boolean
+body: coi->includes(emp) or emp.coi->includes(emp)
