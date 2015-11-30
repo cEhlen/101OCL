@@ -1,10 +1,12 @@
 context Company
 inv: not name.oclIsUndefined() and name <> ""
 inv: not departments.oclIsUndefined()
+inv: complyRankedSalaries()
 
 -- Add a department to the `departments' collection.
 context Company::addDepartment(dep:Department)
 pre: departments->excludes(dep)
+pre: departments->forAll(not contains(dep))
 post: departments->includes(dep)
 
 -- Remove a department from the `departments' collection
@@ -25,12 +27,17 @@ context Company::complyRankedSalaries():Boolean
 body:
     departments->forAll(complyRankedSalaries())
 
+context Company::contains(e:Employee):Boolean
+body:
+    departments->forAll(containsEmployee(e))
+
 ------------------------------------------------------------------------------
 -- Department
 context Department
 inv: not manager.oclIsUndefined()
 inv: not employees.oclIsUndefined()
 inv: not departments.oclIsUndefined()
+inv: company->complyRankedSalaries()
 
 context Department::total():Real
 body:
@@ -54,19 +61,36 @@ body:
         Not employees->exists(self.salary > manager.salary) And
         demartments->forAll(complyRankedSalaries(minSalary))
 
+context Department::addEmployee(e:Employee)
+pre: employees->excludes(e)
+pre: not company->contains(e) 
+post: employees->contains(e)
+
+context Department::removeEmployee(e:Employee)
+pre: employees->contains(e)
+post: employees->excludes(e)
+
+-- Checks if `dep' is a subdepartment of this department
+context Department::contains(dep:Department):Boolean
+body:
+    departments->contains(dep) Or deparments->forAll(contains(dep))
+
+-- Checks if the Employee `e' is employed in this department or subdepartments
+context Department::contains(e:Employee):Boolean
+body:
+    departments->contains(e) Or deparments->forAll(contains(e))
+
+
 ------------------------------------------------------------------------------
 -- Employee
 context Employee
 inv: salary >= 0
 inv: not name.oclIsUndefined()
 inv: not address.oclIsUndefined()
+inv: company->complyRankedSalary()
 
 context Employee::cut()
 post: salary = salary@pre / 2.0
 
-context Employee::addCOI(emp:Employee)
-pre: coi->excludes(emp)
-post: coi->includes(emp)
-
-context Employee::hasCOI(emp:Employee):Boolean
-body: coi->includes(emp) or emp.coi->includes(emp)
+context Employee:setSalary(s:Real)
+post: salary = s
